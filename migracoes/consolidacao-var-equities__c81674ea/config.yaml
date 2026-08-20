@@ -1,0 +1,15 @@
+# Configuração do processo migrado -- ver src/consolidacao_var_equities/config.py
+# e riscos_pontos_atencao em entrada/discovery.yaml (esses valores eram
+# constantes hardcoded na planilha/macro originais).
+#
+# Os caminhos abaixo apontam para arquivos locais desta árvore de exemplo,
+# usados na validação do pipeline. Em produção, caminho_carteira e
+# caminho_saida seriam caminhos \\fswcorp\... reais, conforme decisão
+# registrada em plano/plano_implementacao.md ("Questões em aberto", item 1).
+
+caminho_carteira: "entrada/carteira_equities.csv"
+caminho_saida: "saida_execucao/relatorio_var.csv"
+email_alerta: "mesa.equities@banco.com.br"
+credencial_email: "mesa_equities"
+fator_confianca: 1.65
+limite_var: 50000

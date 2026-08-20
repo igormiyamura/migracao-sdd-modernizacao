@@ -1,0 +1,14 @@
+# Índice agregado de todas as execuções de migração -- ver
+# .claude/skills/migrar-processo/referencias/estado-e-retomada.md para o
+# schema completo e como este arquivo é mantido.
+#
+# Cada entrada é uma cópia derivada para leitura rápida; a fonte de verdade
+# de uma execução individual é sempre o estado.yaml dentro da pasta dela.
+
+- uuid: "c81674ea"
+  processo: "Consolidação de VaR - Mesa Equities"
+  slug: "consolidacao-var-equities"
+  analista: "igormiyamura10@gmail.com"
+  estagio_atual: revisao_tecnica
+  atualizado_em: "2026-08-19T16:30:00-03:00"
+  nota: "execução de exemplo, não é um processo real"

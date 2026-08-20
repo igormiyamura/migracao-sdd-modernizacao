@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Ferramentas de guardrail (guardrails/codigo.md)
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Saída de execução local de uma migração -- regenerável, não é artefato do
+# pipeline (ver .claude/skills/migrar-processo/referencias/convencoes-pastas.md)
+saida_execucao/

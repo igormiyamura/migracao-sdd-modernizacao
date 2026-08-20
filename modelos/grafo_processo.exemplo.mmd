@@ -1,0 +1,36 @@
+%% Exemplo de referência para o agente gerador-grafo.
+%% Convenção de forma por tipo de componente (ver .claude/agents/gerador-grafo.md):
+%%   entrada/saída  -> paralelogramo   [/texto/]
+%%   etapa          -> retângulo       [texto]
+%%   decisão        -> losango         {texto}
+%%   início/fim     -> arredondado     (texto)
+%% Teto de ~12-18 nós: agrupar micro-passos em macro-etapas nomeadas.
+
+flowchart TD
+    inicio(("Início"))
+
+    carteira[/"Carteira Equities\n(fswcorp, diário)"/]
+    precos[/"Preços de fechamento\n(API)"/]
+
+    consolidar["Consolidação de carteiras"]
+    calcular["Cálculo de VaR"]
+    excecao{"VaR acima do limite?"}
+    ajustar["Aplicar ajuste de limite"]
+
+    relatorio[/"Relatório de VaR consolidado\n(e-mail para mesa)"/]
+    alerta[/"Alerta de excesso de limite\n(e-mail para risco)"/]
+
+    fim(("Fim"))
+
+    inicio --> carteira
+    inicio --> precos
+    carteira --> consolidar
+    precos --> consolidar
+    consolidar --> calcular
+    calcular --> excecao
+    excecao -- não --> relatorio
+    excecao -- sim --> ajustar
+    ajustar --> alerta
+    ajustar --> relatorio
+    relatorio --> fim
+    alerta --> fim

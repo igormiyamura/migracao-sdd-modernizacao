@@ -1,0 +1,31 @@
+flowchart TD
+    inicio(("Início"))
+
+    carteira_equities[/"Carteira de equities\n(colado manualmente, diário)"/]
+    parametros_risco[/"Parâmetros de risco\n(FatorConfiança, LimiteVaR)"/]
+
+    calcular_exposicao["Cálculo de exposição\npor ativo"]
+    calcular_var_individual["Cálculo de VaR individual\npor ativo"]
+    consolidar_var_total{"VaR total > LimiteVaR?"}
+    exportar_relatorio["Exportação do\nrelatório consolidado"]
+    alertar_excesso_limite["Envio de e-mail\nde alerta"]
+
+    relatorio_var[/"Relatório de VaR\nconsolidado (CSV)"/]
+    alerta_email[/"E-mail de alerta\npara a mesa"/]
+
+    fim(("Fim"))
+
+    inicio --> carteira_equities
+    inicio --> parametros_risco
+    carteira_equities --> calcular_exposicao
+    calcular_exposicao --> calcular_var_individual
+    parametros_risco --> calcular_var_individual
+    calcular_var_individual --> consolidar_var_total
+    parametros_risco --> consolidar_var_total
+    consolidar_var_total -- não --> exportar_relatorio
+    consolidar_var_total -- sim --> alertar_excesso_limite
+    alertar_excesso_limite --> exportar_relatorio
+    alertar_excesso_limite --> alerta_email
+    exportar_relatorio --> relatorio_var
+    relatorio_var --> fim
+    alerta_email --> fim

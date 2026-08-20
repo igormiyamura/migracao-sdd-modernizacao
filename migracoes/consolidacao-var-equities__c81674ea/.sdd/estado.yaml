@@ -1,0 +1,35 @@
+uuid: "c81674ea"
+processo:
+  nome: "Consolidação de VaR - Mesa Equities"
+  mesa: "Equities - Risco de Mercado"
+  dono: "ana.risco@banco.com.br"
+  frequencia: "diaria"
+  criticidade: "alta"
+origem:
+  stack: excel_vba
+analista: "igormiyamura10@gmail.com"
+criado_em: "2026-08-19T15:00:00-03:00"
+atualizado_em: "2026-08-19T16:30:00-03:00"
+estagio_atual: revisao_tecnica
+
+estagios:
+  discovery:          {status: concluido, artefato: "entrada/discovery.yaml"}
+  doc_negocio:         {status: concluido, artefato: "especificacao/doc_negocio.md"}
+  doc_tecnico:         {status: concluido, artefato: "especificacao/doc_tecnico.md"}
+  grafo:               {status: concluido, artefato: "especificacao/grafo_processo.mmd"}
+  plano:               {status: concluido, artefato: "plano/plano_implementacao.md"}
+  aprovacao_plano:     {status: concluido}
+  implementacao:       {status: concluido, artefato: "src/consolidacao_var_equities/"}
+  homologacao:         {status: concluido, artefato: "testes/relatorio_homologacao.md"}
+  revisao_tecnica:     {status: pendente}
+
+revisao_tecnica:
+  obrigatoria: true
+  aprovado_por: null
+  aprovado_em: null
+
+nota: >
+  Execução de exemplo criada para validar o pipeline de ponta a ponta (ver
+  README.md desta pasta). O sign-off de homologação e a revisão técnica não
+  se aplicam a um processo real -- não deve ser usado como referência de
+  aprovação de produção.

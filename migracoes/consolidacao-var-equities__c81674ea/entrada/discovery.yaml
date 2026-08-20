@@ -1,0 +1,119 @@
+processo:
+  nome: "Consolidação de VaR - Mesa Equities"
+  objetivo_negocio: >
+    Consolidar diariamente a exposição e o VaR (Value at Risk) individual de
+    cada ativo da carteira de equities, comparar o VaR total contra o limite
+    definido pela área, e alertar a mesa quando o limite é ultrapassado.
+
+entradas:
+  - id: carteira_equities
+    tipo: manual
+    descricao: >
+      Posições da carteira (ativo, quantidade, preço unitário, volatilidade).
+      Hoje colada manualmente pelo analista na aba "Carteira" da planilha --
+      não há fonte automatizada identificada no arquivo original.
+    localizacao: "origem_planilha.xlsx!Carteira"
+    formato: xlsx
+    frequencia_atualizacao: diaria
+  - id: parametros_risco
+    tipo: manual
+    descricao: >
+      Fator de confiança do VaR e limite de VaR total, hardcoded na aba
+      "Parametros" da planilha.
+    localizacao: "origem_planilha.xlsx!Parametros"
+    formato: xlsx
+    frequencia_atualizacao: raramente_alterado
+
+etapas:
+  - id: calcular_exposicao
+    nome: "Cálculo de exposição por ativo"
+    tipo: transformacao
+    descricao: "Exposição financeira de cada posição da carteira."
+    entradas_consumidas: [carteira_equities]
+    logica: >
+      Para cada ativo: Exposicao = Quantidade * PrecoUnitario.
+      Fórmula original: Calculo!B2 = Carteira!B2*Carteira!C2 (arrastada para
+      todas as linhas da carteira).
+    regras_negocio:
+      - "Exposicao = Quantidade * PrecoUnitario, por ativo"
+
+  - id: calcular_var_individual
+    nome: "Cálculo de VaR individual por ativo"
+    tipo: transformacao
+    descricao: "VaR paramétrico de cada posição, usando a volatilidade do ativo e o fator de confiança da área."
+    entradas_consumidas: [carteira_equities, parametros_risco]
+    logica: >
+      Para cada ativo: VaRIndividual = Exposicao * Volatilidade * FatorConfianca.
+      Fórmula original: Calculo!C2 = B2*Carteira!D2*Parametros!$B$2.
+    regras_negocio:
+      - "VaRIndividual = Exposicao * Volatilidade * FatorConfianca"
+      - "FatorConfianca = 1.65 (hardcoded em Parametros!B2)"
+
+  - id: consolidar_var_total
+    nome: "Consolidação do VaR total e verificação do limite"
+    tipo: decisao
+    descricao: "Soma o VaR individual de todos os ativos e compara contra o limite da mesa."
+    entradas_consumidas: [parametros_risco]
+    logica: >
+      VaRTotal = SOMA(VaRIndividual de todos os ativos).
+      Status = "EXCEDIDO" se VaRTotal > LimiteVaR, senão "OK".
+      Fórmula original: Relatorio!D = SUM(Calculo!C2:C6); Relatorio!F =
+      IF(D>E,"EXCEDIDO","OK"). Replicada na macro AtualizarRelatorioVaR, que
+      recalcula a planilha (wsRelatorio.Calculate) antes de ler os valores.
+    regras_negocio:
+      - "VaRTotal = soma do VaR individual de todos os ativos da carteira"
+      - "LimiteVaR = 50000 (hardcoded em Parametros!B3)"
+      - "Status = EXCEDIDO se VaRTotal > LimiteVaR, OK caso contrário"
+
+  - id: exportar_relatorio
+    nome: "Exportação do relatório consolidado"
+    tipo: transformacao
+    descricao: "Grava o relatório final (uma linha por ativo, com VaRTotal e Status repetidos) em arquivo de rede."
+    entradas_consumidas: []
+    logica: >
+      Sub ExportarRelatorioCSV (Módulo1): escreve um CSV com colunas
+      ativo,exposicao,var_individual,var_total,limite_var,status -- uma linha
+      por ativo da aba Relatorio -- no caminho fixo
+      \\fswcorp\risco\equities\relatorio_var.csv.
+    regras_negocio: []
+
+  - id: alertar_excesso_limite
+    nome: "Alerta por e-mail em caso de excesso"
+    tipo: decisao
+    descricao: "Se o status for EXCEDIDO, envia e-mail de alerta para a mesa."
+    entradas_consumidas: []
+    logica: >
+      Sub EnviarAlertaLimite (Módulo1), chamada apenas quando Status =
+      "EXCEDIDO": abre o Outlook via CreateObject("Outlook.Application") e
+      envia e-mail para mesa.equities@banco.com.br com o valor do VaRTotal no
+      corpo.
+    regras_negocio:
+      - "E-mail de alerta disparado somente quando Status = EXCEDIDO"
+
+saidas:
+  - id: relatorio_var
+    nome: "Relatório de VaR consolidado (CSV)"
+    destino: "arquivo_local"
+    formato: csv
+    consumido_por: null
+  - id: alerta_email
+    nome: "E-mail de alerta de limite excedido"
+    destino: "e-mail para mesa.equities@banco.com.br"
+    formato: "texto (corpo de e-mail)"
+    consumido_por: null
+
+riscos_pontos_atencao:
+  - "Entrada 'carteira_equities' não tem fonte automatizada identificada -- é colada manualmente. Confirmar com o dono do processo se existe um sistema (gestão de carteira, custódia) do qual isso possa ser extraído automaticamente antes de decidir o conector de entrada na migração."
+  - "FatorConfianca (1.65) e LimiteVaR (50000) estão hardcoded na aba Parametros, sem histórico de quem os definiu ou com que frequência mudam -- confirmar se devem virar parâmetros de config.yaml (recomendado) ou se há uma fonte de verdade oficial para eles."
+  - "Caminho de saída \\\\fswcorp\\risco\\equities\\relatorio_var.csv está hardcoded na macro (constante CAMINHO_SAIDA) -- na migração deve virar configuração, não valor fixo no código."
+  - "Endereço de e-mail de alerta (mesa.equities@banco.com.br) está hardcoded na macro (constante EMAIL_ALERTA) -- mesma observação: deve virar configuração."
+  - "A macro roda via Workbook_Open (auto-run ao abrir o arquivo) -- não há agendamento explícito visível; confirmar com o dono do processo o horário/gatilho real de execução em produção (alguém abre o arquivo manualmente todo dia? há uma task agendada que abre o Excel?)."
+  - "ExportarRelatorioCSV sobrescreve o arquivo de saída sem backup da versão anterior (fso.CreateTextFile(..., True) trunca o arquivo) -- avaliar se a migração deve manter histórico de execuções."
+
+glossario:
+  - termo: "VaR"
+    definicao: "Value at Risk -- perda máxima esperada de uma posição ou carteira, para um dado nível de confiança e horizonte de tempo."
+  - termo: "Exposição"
+    definicao: "Valor financeiro de uma posição (quantidade × preço unitário)."
+  - termo: "Fator de confiança"
+    definicao: "Multiplicador do VaR paramétrico associado ao nível de confiança estatística adotado pela área (1.65 ≈ 95% em uma distribuição normal)."
