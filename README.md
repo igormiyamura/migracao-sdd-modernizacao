@@ -36,4 +36,3 @@ Para entender o pipeline estágio a estágio, leia `.claude/skills/migrar-proces
 - Todos os artefatos gerados (documentação, mensagens, e a maior parte do código) são em português.
 - Stack de código: Python 3.11, `uv`, `ruff`, `mypy`, `pytest` — detalhe completo em `guardrails/codigo.md`.
 - Cada execução tem um UUID próprio, retomável a qualquer momento — detalhe em `.claude/skills/migrar-processo/referencias/estado-e-retomada.md`.
-# migracao-sdd-modernizacao
