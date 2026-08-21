@@ -10,7 +10,7 @@ Conduz a migração de um processo legado de risco de mercado (Excel, Excel+VBA,
 
 1. Perguntar ao usuário: nova migração ou continuação de um UUID existente? Se continuação, ler `.sdd/estado.yaml` da pasta `migracoes/<slug>__<uuid>/` e anunciar em que estágio parou antes de prosseguir.
 2. Intake: seguir `.claude/skills/migrar-processo/referencias/convencoes-pastas.md` para os artefatos mínimos por stack e a estrutura de pastas. Criar a pasta da execução com UUID (8 primeiros caracteres de um UUID v4) e registrar em `migracoes/indice.yaml`.
-3. Discovery: seguir as instruções do arquivo `.claude/agents/extrator-<stack>.md` correspondente à stack de origem (`extrator-excel`, `extrator-excel-vba`, `extrator-alteryx`, `extrator-csharp`, `extrator-python-legado`) para produzir `entrada/discovery.yaml`.
+3. Discovery: seguir as instruções do arquivo `.claude/agents/extrator-<stack>.md` correspondente à stack de origem (`extrator-excel`, `extrator-excel-vba`, `extrator-alteryx`, `extrator-csharp`, `extrator-python-legado`) para produzir `entrada/discovery.yaml`. Rodar primeiro o script de pré-processamento correspondente em `scripts/` (nunca ler o arquivo bruto direto) e seguir a estratégia de divisão por módulo de `.claude/skills/migrar-processo/referencias/extracao-monolitos.md` — processos reais aqui costumam ser monólitos.
 4. Documentação: seguir `.claude/agents/redator-documentacao.md` para produzir `especificacao/doc_negocio.md` e `especificacao/doc_tecnico.md`.
 5. Grafo: seguir `.claude/agents/gerador-grafo.md` para produzir `especificacao/grafo_processo.mmd`.
 6. Plano: seguir `.claude/agents/planejador.md` para produzir `plano/plano_implementacao.md`. Parar e pedir aprovação explícita do usuário antes de seguir — registrar em `estado.yaml -> estagios.aprovacao_plano`.
@@ -20,9 +20,10 @@ Conduz a migração de um processo legado de risco de mercado (Excel, Excel+VBA,
 
 ## Specifications
 
-- Schema de `discovery.yaml`: `.claude/skills/migrar-processo/referencias/convencoes-pastas.md`
+- Schema de `discovery.yaml` (agrupado por `modulo`): `.claude/skills/migrar-processo/referencias/convencoes-pastas.md`
 - Schema de `estado.yaml` e lógica de retomada por UUID: `.claude/skills/migrar-processo/referencias/estado-e-retomada.md`
-- Guardrails de código (stack, nomenclatura, estrutura): `guardrails/codigo.md`
+- Divisão de monólito, checkpoint incremental e scripts de pré-processamento: `.claude/skills/migrar-processo/referencias/extracao-monolitos.md`
+- Guardrails de código (stack, nomenclatura, estrutura, `logica/` como subpacote em processo grande): `guardrails/codigo.md`
 - Interface de conectores (fswcorp/email/sharepoint/api/processo_legado): `guardrails/interface_conectores.md`
 - Modelos dos documentos gerados: `modelos/`
 

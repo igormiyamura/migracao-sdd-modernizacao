@@ -1,0 +1,17 @@
+# Configuração do processo migrado -- ver
+# src/enquadramento_limites_renda_fixa/config.py e riscos_pontos_atencao em
+# entrada/discovery.yaml (limiares e caminhos eram constantes hardcoded no
+# VBA original).
+#
+# Caminhos abaixo apontam para arquivos locais desta árvore de exemplo. Em
+# produção seriam \\fswcorp\... reais, conforme decisão registrada em
+# plano/plano_implementacao.md ("Questões em aberto", item 1).
+
+caminho_posicoes: "entrada/posicoes_renda_fixa.csv"
+caminho_limites: "entrada/limites_negociacao.csv"
+caminho_log: "saida_execucao/log_enquadramento.csv"
+email_head_risco: "head.risco@banco.com.br"
+email_head_mesa: "head.mesarendafixa@banco.com.br"
+credencial_email: "mesa_renda_fixa"
+limiar_alerta: 0.8
+limiar_excedido: 1.0

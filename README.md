@@ -25,6 +25,7 @@ Esta é a Fase 1: migração para Python local + guardrails que preparam a trans
 .devin/playbooks/                  adaptador do mesmo pipeline para Devin Desktop
 guardrails/                        padrão de código e contrato da interface de conectores
 conectores/                        implementação placeholder da interface de conectores
+scripts/                           pré-processamento determinístico (Excel, VBA, Alteryx, notebook) antes da leitura por agente
 modelos/                           templates dos documentos/artefatos gerados por migração
 migracoes/                         uma pasta por execução (criada em tempo de uso) + índice agregado
 ```

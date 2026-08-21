@@ -1,0 +1,302 @@
+processo:
+  nome: "Apuração de Enquadramento de Limites - Mesa de Renda Fixa"
+  objetivo_negocio: >
+    Consolidar diariamente a exposição de risco de taxa (DV01) da carteira de
+    Renda Fixa por book, comparar contra os limites de negociação definidos
+    pela área, e notificar a mesa (alerta) ou o head de risco (excesso)
+    conforme a gravidade do desenquadramento.
+
+entradas:
+  - id: posicoes_renda_fixa
+    tipo: manual
+    descricao: >
+      Posições da carteira de Renda Fixa (ativo, book, quantidade, PU, DV01
+      unitário). Colada manualmente pelo analista na aba "Posicoes" -- sem
+      fonte automatizada identificada no arquivo original.
+    localizacao: "origem_planilha.xlsx!Posicoes"
+    formato: xlsx
+    frequencia_atualizacao: diaria
+  - id: limites_negociacao
+    tipo: manual
+    descricao: "Limite de DV01 por book, definido pela área. Aba 'Limites'."
+    localizacao: "origem_planilha.xlsx!Limites"
+    formato: xlsx
+    frequencia_atualizacao: raramente_alterado
+
+modulos:
+  - id: classe_limite
+    nome: "Objeto de limite (ClasseLimite)"
+    origem: "classe_vba: ClasseLimite.cls"
+    descricao: >
+      Representa o limite de um book: guarda o valor limite e o valor
+      utilizado, e calcula o percentual de uso e a classificação de
+      severidade. É instanciada pelo módulo de enquadramento, uma vez por
+      book.
+    etapas:
+      - id: classe_limite__calcular_percentual
+        nome: "Cálculo do percentual de utilização do limite"
+        tipo: transformacao
+        descricao: "Property Get PercentualUtilizado -- razão entre o valor usado e o limite do book."
+        entradas_consumidas: [modulo_enquadramento__avaliar]
+        logica: >
+          PercentualUtilizado = ValorUtilizado / ValorLimite, com proteção
+          para ValorLimite = 0 (retorna 0 em vez de erro de divisão).
+        codigo_original: |
+          Public Property Get PercentualUtilizado() As Double
+              If mValorLimite = 0 Then
+                  PercentualUtilizado = 0
+              Else
+                  PercentualUtilizado = mValorUtilizado / mValorLimite
+              End If
+          End Property
+        regras_negocio:
+          - "PercentualUtilizado = ValorUtilizado / ValorLimite (0 se ValorLimite = 0, não erro)"
+
+      - id: classe_limite__classificar_status
+        nome: "Classificação de severidade do enquadramento"
+        tipo: decisao
+        descricao: "Property Get Status -- classifica o book em OK, ALERTA ou EXCEDIDO."
+        entradas_consumidas: [classe_limite__calcular_percentual]
+        logica: >
+          Status = "EXCEDIDO" se PercentualUtilizado > 100%; "ALERTA" se
+          entre 80% (inclusive) e 100% (inclusive); "OK" abaixo de 80%. Os
+          dois limiares (80%, 100%) estão hardcoded na Property, sem
+          parametrização.
+        codigo_original: |
+          Public Property Get Status() As String
+              Dim pct As Double
+              pct = Me.PercentualUtilizado
+              If pct > 1 Then
+                  Status = "EXCEDIDO"
+              ElseIf pct >= 0.8 Then
+                  Status = "ALERTA"
+              Else
+                  Status = "OK"
+              End If
+          End Property
+        regras_negocio:
+          - "Status = EXCEDIDO se PercentualUtilizado > 100%"
+          - "Status = ALERTA se 80% <= PercentualUtilizado <= 100%"
+          - "Status = OK se PercentualUtilizado < 80%"
+
+  - id: modulo_consolidacao
+    nome: "Consolidação de DV01 por book"
+    origem: "modulo_vba: ModuloConsolidacao.bas"
+    descricao: "Soma o DV01 de todas as posições de cada book."
+    etapas:
+      - id: modulo_consolidacao__consolidar_dv01
+        nome: "Consolidação de DV01 por book"
+        tipo: transformacao
+        descricao: "Percorre a aba Posicoes e soma Quantidade * DV01Unitario, agrupado por Book, num dicionário."
+        entradas_consumidas: [posicoes_renda_fixa]
+        logica: >
+          Para cada posição: dv01 = Quantidade * DV01Unitario. Acumula por
+          Book num Scripting.Dictionary (cria a entrada se o book ainda não
+          existe, soma se já existe).
+        codigo_original: |
+          Function ConsolidarDV01PorBook() As Object
+              Dim wsPos As Worksheet
+              Dim dictBooks As Object
+              Dim ultimaLinha As Long, i As Long
+              Dim book As String, dv01 As Double
+
+              Set wsPos = ThisWorkbook.Sheets("Posicoes")
+              Set dictBooks = CreateObject("Scripting.Dictionary")
+
+              ultimaLinha = wsPos.Cells(wsPos.Rows.Count, "A").End(xlUp).Row
+              For i = 2 To ultimaLinha
+                  book = wsPos.Cells(i, 2).Value
+                  dv01 = wsPos.Cells(i, 3).Value * wsPos.Cells(i, 5).Value ' Quantidade * DV01Unitario
+
+                  If dictBooks.Exists(book) Then
+                      dictBooks(book) = dictBooks(book) + dv01
+                  Else
+                      dictBooks.Add book, dv01
+                  End If
+              Next i
+
+              Set ConsolidarDV01PorBook = dictBooks
+          End Function
+        regras_negocio:
+          - "DV01 da posição = Quantidade * DV01Unitario"
+          - "DV01 do book = soma do DV01 de todas as posições daquele book"
+
+  - id: modulo_enquadramento
+    nome: "Avaliação de enquadramento"
+    origem: "modulo_vba: ModuloEnquadramento.bas"
+    descricao: "Cria um objeto ClasseLimite por book (Limites) e associa a exposição consolidada."
+    etapas:
+      - id: modulo_enquadramento__avaliar
+        nome: "Avaliação de enquadramento por book"
+        tipo: transformacao
+        descricao: "Para cada book em Limites, monta um ClasseLimite com o limite configurado e o DV01 consolidado correspondente."
+        entradas_consumidas: [limites_negociacao, modulo_consolidacao__consolidar_dv01]
+        logica: >
+          Para cada linha da aba Limites: cria um ClasseLimite, define Book e
+          ValorLimite a partir da planilha, e ValorUtilizado a partir do
+          dicionário consolidado (0 se o book não tiver nenhuma posição --
+          ver riscos_pontos_atencao). Devolve a coleção de ClasseLimite, uma
+          por book.
+        codigo_original: |
+          Function AvaliarEnquadramento(dictExposicoes As Object) As Collection
+              Dim wsLimites As Worksheet
+              Dim ultimaLinha As Long, i As Long
+              Dim resultado As New Collection
+              Dim limite As ClasseLimite
+              Dim book As String
+
+              Set wsLimites = ThisWorkbook.Sheets("Limites")
+              ultimaLinha = wsLimites.Cells(wsLimites.Rows.Count, "A").End(xlUp).Row
+
+              For i = 2 To ultimaLinha
+                  book = wsLimites.Cells(i, 1).Value
+                  Set limite = New ClasseLimite
+                  limite.Book = book
+                  limite.ValorLimite = wsLimites.Cells(i, 2).Value
+                  If dictExposicoes.Exists(book) Then
+                      limite.ValorUtilizado = dictExposicoes(book)
+                  Else
+                      limite.ValorUtilizado = 0
+                  End If
+                  resultado.Add limite
+              Next i
+
+              Set AvaliarEnquadramento = resultado
+          End Function
+        regras_negocio:
+          - "Um ClasseLimite é criado por linha da aba Limites (não por book que aparece em Posicoes)"
+          - "Book presente em Limites mas sem posição em Posicoes recebe ValorUtilizado = 0 (status OK por definição)"
+
+  - id: modulo_notificacao
+    nome: "Notificação e exportação de log"
+    origem: "modulo_vba: ModuloNotificacao.bas"
+    descricao: "Exporta o resultado consolidado em CSV e envia e-mail conforme a severidade de cada book."
+    etapas:
+      - id: modulo_notificacao__exportar_log
+        nome: "Exportação do log de enquadramento"
+        tipo: transformacao
+        descricao: "Grava um CSV com book, limite, utilizado, percentual e status de cada book."
+        entradas_consumidas: [modulo_enquadramento__avaliar, classe_limite__classificar_status]
+        logica: "Escreve uma linha por ClasseLimite da coleção recebida, sobrescrevendo o arquivo anterior."
+        codigo_original: |
+          Sub NotificarEExportar(limites As Collection)
+              Dim limite As ClasseLimite
+              Dim fso As Object, arq As Object
+
+              Set fso = CreateObject("Scripting.FileSystemObject")
+              Set arq = fso.CreateTextFile(CAMINHO_LOG, True)
+              arq.WriteLine "book,limite,utilizado,percentual,status"
+
+              For Each limite In limites
+                  arq.WriteLine limite.Book & "," & limite.ValorLimite & "," & limite.ValorUtilizado & _
+                      "," & limite.PercentualUtilizado & "," & limite.Status
+                  ' (envio de e-mail chamado daqui -- ver etapa notificar_por_severidade)
+              Next limite
+
+              arq.Close
+          End Sub
+        regras_negocio: []
+
+      - id: modulo_notificacao__notificar_por_severidade
+        nome: "Notificação por e-mail conforme severidade"
+        tipo: decisao
+        descricao: "Envia e-mail para destinatário diferente conforme o Status de cada book."
+        entradas_consumidas: [classe_limite__classificar_status]
+        logica: >
+          Para cada book: se Status = EXCEDIDO, envia e-mail para o head de
+          risco; se Status = ALERTA, envia e-mail para o head da mesa; se
+          Status = OK, não envia nada.
+        codigo_original: |
+          If limite.Status = "EXCEDIDO" Then
+              EnviarEmail EMAIL_HEAD_RISCO, "EXCEDIDO: limite de " & limite.Book, limite
+          ElseIf limite.Status = "ALERTA" Then
+              EnviarEmail EMAIL_HEAD_MESA, "ALERTA: limite de " & limite.Book, limite
+          End If
+
+          Private Sub EnviarEmail(destinatario As String, assunto As String, limite As ClasseLimite)
+              Dim outlookApp As Object, mail As Object
+              Set outlookApp = CreateObject("Outlook.Application")
+              Set mail = outlookApp.CreateItem(0)
+              mail.To = destinatario
+              mail.Subject = assunto
+              mail.Body = "Book " & limite.Book & ": utilizado " & Format(limite.PercentualUtilizado, "0.0%") & _
+                  " do limite de " & limite.ValorLimite
+              mail.Send
+          End Sub
+        regras_negocio:
+          - "EXCEDIDO -> e-mail para head de risco"
+          - "ALERTA -> e-mail para head da mesa"
+          - "OK -> nenhum e-mail"
+
+  - id: modulo_principal
+    nome: "Orquestração da apuração"
+    origem: "modulo_vba: ModuloPrincipal.bas"
+    descricao: "Ponto de entrada -- chama consolidação, enquadramento e notificação nesta ordem, disparado ao abrir a planilha."
+    etapas:
+      - id: modulo_principal__orquestrar
+        nome: "Orquestração da apuração"
+        tipo: transformacao
+        descricao: "Chama os três módulos na ordem: consolidação -> enquadramento -> notificação/exportação."
+        entradas_consumidas: []
+        logica: "Sequência fixa, sem paralelismo: ConsolidarDV01PorBook -> AvaliarEnquadramento -> NotificarEExportar."
+        codigo_original: |
+          Sub RodarApuracao()
+              Dim exposicoes As Object
+              Dim limites As Collection
+
+              RegistrarLog "Iniciando apuracao de enquadramento"
+
+              Set exposicoes = ConsolidarDV01PorBook()
+              Set limites = AvaliarEnquadramento(exposicoes)
+              NotificarEExportar limites
+
+              RegistrarLog "Apuracao concluida"
+          End Sub
+
+          Private Sub Workbook_Open()
+              RodarApuracao
+          End Sub
+        regras_negocio: []
+
+  - id: modulo_utilitarios
+    nome: "Utilitários de log"
+    origem: "modulo_vba: ModuloUtilitarios.bas"
+    descricao: >
+      Funções auxiliares de formatação de data e log de depuração (Debug.Print).
+      Sem lógica de negócio própria -- usadas pelo módulo principal, não
+      viram etapa própria (ver extracao-monolitos.md, seção 3).
+    etapas: []
+
+saidas:
+  - id: log_enquadramento
+    nome: "Log de enquadramento (CSV)"
+    destino: "arquivo_local"        # produção: \\fswcorp\risco\rendafixa\log_enquadramento.csv
+    formato: csv
+    consumido_por: null
+  - id: alerta_limite_excedido
+    nome: "E-mail de excesso de limite"
+    destino: "e-mail para head.risco@banco.com.br"
+    formato: "texto (corpo de e-mail)"
+    consumido_por: null
+  - id: alerta_limite_proximo
+    nome: "E-mail de alerta de proximidade do limite"
+    destino: "e-mail para head.mesarendafixa@banco.com.br"
+    formato: "texto (corpo de e-mail)"
+    consumido_por: null
+
+riscos_pontos_atencao:
+  - "Entrada 'posicoes_renda_fixa' não tem fonte automatizada identificada -- colada manualmente na aba Posicoes, mesmo padrão do primeiro exemplo. Confirmar com o dono do processo se existe sistema de origem."
+  - "Os limiares de classificação (80% = ALERTA, 100% = EXCEDIDO) estão hardcoded em ClasseLimite.Status, sem histórico documentado de quem os definiu -- confirmar se viram parâmetros de config.yaml (recomendado) ou se há norma formal da área que os define."
+  - "Caminho de saída do log (\\\\fswcorp\\risco\\rendafixa\\log_enquadramento.csv) e os dois e-mails de destino (EMAIL_HEAD_RISCO, EMAIL_HEAD_MESA) estão hardcoded em ModuloNotificacao -- devem virar configuração."
+  - "A aba 'Resumo' contém uma fórmula SUMPRODUCT que recalcula o mesmo DV01 por book de forma independente (conferência manual do analista), mas não é lida em nenhum lugar pela macro -- é uma segunda fonte de verdade para o mesmo número, hoje mantida manualmente em paralelo ao VBA, com risco de divergir sem ninguém perceber. Confirmar com o dono do processo se essa conferência precisa ser preservada na migração (ex: como um teste de consistência) ou se pode ser descartada."
+  - "Book presente na aba Limites mas sem nenhuma posição na aba Posicoes recebe ValorUtilizado = 0 e portanto Status = OK 'por padrão' -- confirmar se isso é intencional (book zerado é normal) ou se deveria gerar um alerta separado (ex: 'book configurado sem posição, verificar')."
+  - "A macro roda via Workbook_Open (auto-run ao abrir o arquivo), sem agendamento explícito -- mesmo padrão do primeiro exemplo; confirmar o gatilho real de execução em produção."
+  - "O log é sobrescrito a cada execução (fso.CreateTextFile(..., True) trunca) -- sem histórico de execuções anteriores."
+
+glossario:
+  - termo: "DV01"
+    definicao: "Dollar Value of 1 basis point -- variação no valor de uma posição de renda fixa para uma mudança de 1 ponto-base na taxa de juros; medida padrão de risco de taxa."
+  - termo: "Book"
+    definicao: "Agrupamento de posições por estratégia/mesa dentro da carteira de Renda Fixa, usado como unidade de limite de risco."
+  - termo: "Enquadramento"
+    definicao: "Verificação de que a exposição de um book está dentro do limite de risco definido pela área."

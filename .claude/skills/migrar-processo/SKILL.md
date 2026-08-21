@@ -10,7 +10,7 @@ Conduz um processo legado, do zero até pronto para revisão técnica, pelos est
 
 Antes do primeiro estágio, leia `referencias/convencoes-pastas.md` (estrutura de pastas e o contrato `discovery.yaml`) e `referencias/estado-e-retomada.md` (esquema de `estado.yaml` e como retomar). Volte a eles quando precisar do schema exato — não duplicado aqui.
 
-Caminhos `referencias/...` são relativos a esta pasta de skill. Caminhos `guardrails/...`, `modelos/...`, `conectores/...` e `migracoes/...` citados abaixo são relativos à raiz do repositório. Ao despachar qualquer agente das seções 3 a 8, informe no prompt de despacho o caminho absoluto da pasta desta execução (`migracoes/<slug>__<uuid>/`) — os arquivos de agente em `.claude/agents/` escrevem `entrada/`, `especificacao/`, `plano/`, `src/`, `testes/` como relativos a essa pasta.
+Caminhos `referencias/...` são relativos a esta pasta de skill. Caminhos `guardrails/...`, `modelos/...`, `conectores/...`, `scripts/...` e `migracoes/...` citados abaixo são relativos à raiz do repositório. Ao despachar qualquer agente das seções 3 a 8, informe no prompt de despacho o caminho absoluto da pasta desta execução (`migracoes/<slug>__<uuid>/`) — os arquivos de agente em `.claude/agents/` escrevem `entrada/`, `especificacao/`, `plano/`, `src/`, `testes/` como relativos a essa pasta.
 
 ## 1. Nova migração ou continuação?
 
@@ -40,9 +40,9 @@ Despache, via ferramenta de agente, o extrator correspondente à stack confirmad
 | C# | `extrator-csharp` |
 | Python legado | `extrator-python-legado` |
 
-O agente produz `entrada/discovery.yaml`. Atualize `estado.yaml` (`discovery: concluido`) só depois de confirmar que o arquivo existe e tem as quatro seções (`entradas`, `etapas`, `saidas`, `riscos_pontos_atencao`) preenchidas — um discovery vazio ou genérico não conta como concluído.
+O agente produz `entrada/discovery.yaml`. Processos reais aqui costumam ser monólitos (macro VBA de ~1000 linhas com várias classes, workflow Alteryx com dezenas de ferramentas, script/notebook Python de ~1000 linhas) — o extrator pode levar várias idas e vindas, gravando progresso incremental (ver `referencias/extracao-monolitos.md`); isso é esperado, não um sinal de que algo deu errado. Atualize `estado.yaml` (`discovery: concluido`) só depois de confirmar que o arquivo existe e tem as quatro seções (`entradas`, `modulos`, `saidas`, `riscos_pontos_atencao`) preenchidas, com todo módulo identificado na extração presente em `modulos` — um discovery vazio, genérico, ou com módulo faltando não conta como concluído.
 
-**Concluído quando**: `entrada/discovery.yaml` existe e cobre as quatro seções.
+**Concluído quando**: `entrada/discovery.yaml` existe e cobre as quatro seções, sem módulo identificado deixado de fora.
 
 ## 4. Documentação
 

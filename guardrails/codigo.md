@@ -40,3 +40,19 @@ pyproject.toml
 testes/
   test_logica.py
 ```
+
+## Processo grande: `logica/` como subpacote
+
+Um discovery com muitos `modulos` (a maioria dos monólitos reais desta área — ver `.claude/skills/migrar-processo/referencias/extracao-monolitos.md`) não cabe legível num `logica.py` só. Nesse caso, `logica.py` vira um subpacote, um arquivo por `modulo.id` do discovery:
+
+```
+src/<slug_do_processo>/
+  logica/
+    __init__.py
+    <modulo_id_1>.py     # uma função por etapa daquele módulo
+    <modulo_id_2>.py
+    ...
+  fluxo.py                # importa de logica.<modulo_id>, chama na ordem de dependência entre módulos
+```
+
+`testes/` espelha a mesma divisão (`test_<modulo_id>.py` em vez de um `test_logica.py` só) quando `logica/` é subpacote. A decisão de qual das duas formas usar é do `planejador` (ver `.claude/agents/planejador.md`), registrada em `plano_implementacao.md` — o `implementador-python` segue o que o plano definiu, não decide sozinho no meio da implementação.

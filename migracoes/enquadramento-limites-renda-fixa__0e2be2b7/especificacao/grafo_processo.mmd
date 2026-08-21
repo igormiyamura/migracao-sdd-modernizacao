@@ -1,0 +1,30 @@
+flowchart TD
+    inicio(("Início"))
+
+    posicoes_renda_fixa[/"Posições Renda Fixa\n(colado manualmente, diário)"/]
+    limites_negociacao[/"Limites de negociação\npor book"/]
+
+    modulo_consolidacao["Consolidação de DV01\npor book"]
+    modulo_enquadramento["Avaliação de\nenquadramento"]
+    classe_limite["Objeto de limite\n(percentual + status)"]
+    modulo_notificacao["Notificação e\nexportação de log"]
+
+    log_enquadramento[/"Log de enquadramento\n(CSV)"/]
+    alerta_limite_excedido[/"E-mail: excesso\n(head de risco)"/]
+    alerta_limite_proximo[/"E-mail: alerta\n(head da mesa)"/]
+
+    fim(("Fim"))
+
+    inicio --> posicoes_renda_fixa
+    inicio --> limites_negociacao
+    posicoes_renda_fixa --> modulo_consolidacao
+    modulo_consolidacao --> modulo_enquadramento
+    limites_negociacao --> modulo_enquadramento
+    modulo_enquadramento --> classe_limite
+    classe_limite --> modulo_notificacao
+    modulo_notificacao --> log_enquadramento
+    modulo_notificacao --> alerta_limite_excedido
+    modulo_notificacao --> alerta_limite_proximo
+    log_enquadramento --> fim
+    alerta_limite_excedido --> fim
+    alerta_limite_proximo --> fim

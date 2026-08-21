@@ -6,15 +6,18 @@ tools: Read, Bash, Grep, Glob, Write
 
 # Extrator Excel (sem macro)
 
-Lê `entrada/origem.xlsx` e reconstrói a lógica de negócio embutida nas fórmulas — sem executar o Excel, direto da estrutura do arquivo. O contrato de saída (`discovery.yaml`) está em `.claude/skills/migrar-processo/referencias/convencoes-pastas.md`; não duplique o schema aqui, só o preencha. Caminhos deste documento (`entrada/`, etc.) são relativos à pasta da execução informada pelo orquestrador ao despachar este agente.
+Reconstrói a lógica de negócio embutida nas fórmulas de `entrada/origem.xlsx`. O contrato de saída (`discovery.yaml`, incluindo o agrupamento por `modulo`) está em `.claude/skills/migrar-processo/referencias/convencoes-pastas.md`; a estratégia de divisão de monólito e o script de pré-processamento estão em `referencias/extracao-monolitos.md` — leia os dois antes de começar, não duplicados aqui. Caminhos deste documento (`entrada/`, etc.) são relativos à pasta da execução informada pelo orquestrador ao despachar este agente.
 
 ## Passos
 
-1. Abra o arquivo com uma biblioteca que lê `.xlsx` sem depender do Excel instalado (ex: `openpyxl` com `data_only=False`, para ver as fórmulas, não só os valores calculados). Liste todas as abas, incluindo ocultas.
-2. Para cada aba, identifique: células com fórmula (viram candidatas a `etapas`), células com valor fixo referenciado por fórmulas em outro lugar (candidatas a parâmetro/configuração — sinalize em `riscos_pontos_atencao` se parecer um valor de negócio hardcoded, ex: uma taxa ou um limite), validação de dados e formatação condicional que codifica uma regra (ex: uma regra que pinta de vermelho valores fora de um range é uma regra de negócio, não só estética).
-3. Mapeie o fluxo de dependência entre abas: qual aba alimenta qual (uma aba "Base" cujos valores são referenciados por fórmulas em "Cálculo", que por sua vez alimenta "Relatório") — isso vira a sequência de `etapas` em `discovery.yaml`.
-4. Identifique de onde os dados de entrada chegam (a aba "Base" é colada manualmente? importada de um arquivo externo via algum link externo do Excel?) e para onde o resultado final sai (a planilha é enviada por e-mail? salva num caminho de rede?) — pergunte ao analista se não estiver evidente no arquivo; não adivinhe o conector.
-5. Traduza cada fórmula relevante para uma descrição em linguagem natural da regra de negócio que ela implementa, preservando a lógica condicional exata (ex: "se margem > 5%, aplica desconto de X, senão Y" — não simplifique a condição).
+1. Rode `python scripts/extrair_excel.py entrada/origem.xlsx` (raiz do repositório) e leia a saída — nunca abra o `.xlsx` bruto diretamente. O script já separa fórmulas de valores literais e resume blocos de dado grande.
+2. Cada aba é um `modulo` (ver "Dividir por módulo" em `extracao-monolitos.md`); uma aba com muitas fórmulas desconexas entre si divide em mais de um módulo, por região de células que se referenciam mutuamente.
+3. Dentro de cada módulo: células com fórmula viram candidatas a `etapa`; valores literais referenciados por fórmulas em outro lugar são candidatos a parâmetro/configuração — sinalize em `riscos_pontos_atencao` se parecer um valor de negócio hardcoded (taxa, limite, threshold); validação de dado e formatação condicional que codifica uma regra (ex: pinta de vermelho valores fora de um range) é regra de negócio, não só estética.
+4. Mapeie o fluxo de dependência entre módulos/abas (uma aba "Base" cujos valores alimentam fórmulas em "Cálculo", que por sua vez alimenta "Relatório") — isso vira `entradas_consumidas` apontando para `id`s de outros módulos.
+5. Identifique de onde os dados de entrada chegam (a aba "Base" é colada manualmente? importada via link externo do Excel?) e para onde o resultado final sai — pergunte ao analista se não estiver evidente; não adivinhe o conector.
+6. Traduza cada fórmula relevante para a regra de negócio que ela implementa, preservando a lógica condicional exata (ex: "se margem > 5%, aplica desconto de X, senão Y" — não simplifique a condição). Copie a fórmula literal (como veio da saída do script) para `codigo_original` da etapa — é o que vira código citado de verdade em `doc_tecnico.md`, não uma paráfrase.
+
+Se o script indicar modo monólito (ver limiares em `extracao-monolitos.md`), siga o procedimento de checkpoint incremental descrito lá — um módulo por vez, gravando em `entrada/discovery.yaml` a cada módulo concluído.
 
 ## Sem fórmulas suficientes para reconstruir a lógica
 
@@ -22,4 +25,4 @@ Se a planilha for majoritariamente dado colado (sem fórmula, ou fórmulas trivi
 
 ## Concluído quando
 
-`entrada/discovery.yaml` existe, toda aba com fórmula não trivial gerou ao menos uma `etapa`, e nenhum valor que parece regra de negócio (taxa, limite, threshold) foi deixado fora de `riscos_pontos_atencao` sem menção.
+`entrada/discovery.yaml` existe, todo módulo identificado pelo script apareceu em `modulos` (mesmo que com `etapas: []` e uma descrição, se não carregar regra de negócio), toda aba com fórmula não trivial gerou ao menos uma `etapa`, e nenhum valor que parece regra de negócio (taxa, limite, threshold) foi deixado fora de `riscos_pontos_atencao` sem menção.

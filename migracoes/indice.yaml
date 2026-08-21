@@ -12,3 +12,11 @@
   estagio_atual: revisao_tecnica
   atualizado_em: "2026-08-19T16:30:00-03:00"
   nota: "execução de exemplo, não é um processo real"
+
+- uuid: "0e2be2b7"
+  processo: "Apuração de Enquadramento de Limites - Mesa de Renda Fixa"
+  slug: "enquadramento-limites-renda-fixa"
+  analista: "igormiyamura10@gmail.com"
+  estagio_atual: revisao_tecnica
+  atualizado_em: "2026-08-20T10:40:00-03:00"
+  nota: "execução de exemplo (segunda) -- monólito real, não é um processo real"

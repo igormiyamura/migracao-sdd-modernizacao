@@ -1,0 +1,23 @@
+# Checkpoint de discovery -- ver referencias/extracao-monolitos.md, seção 3.
+# Modo monólito ativado: 6 módulos/classes na saída de extrair_vba.py (>= 2).
+# Cada módulo é gravado em entrada/discovery.yaml assim que concluído, e
+# marcado aqui -- se a extração for interrompida, retoma do primeiro
+# `pendente`, sem reprocessar os já `concluido`.
+
+modulos_identificados_pelo_script:
+  - ClasseLimite.cls
+  - ModuloConsolidacao.bas
+  - ModuloEnquadramento.bas
+  - ModuloNotificacao.bas
+  - ModuloPrincipal.bas
+  - ModuloUtilitarios.bas
+
+progresso:
+  classe_limite:            {status: concluido, modulo_discovery: classe_limite}
+  modulo_consolidacao:      {status: concluido, modulo_discovery: modulo_consolidacao}
+  modulo_enquadramento:     {status: concluido, modulo_discovery: modulo_enquadramento}
+  modulo_notificacao:       {status: concluido, modulo_discovery: modulo_notificacao}
+  modulo_principal:         {status: concluido, modulo_discovery: modulo_principal}
+  modulo_utilitarios:       {status: concluido, modulo_discovery: modulo_utilitarios}
+
+concluido_em: "2026-08-20T09:20:00-03:00"

@@ -1,0 +1,35 @@
+uuid: "0e2be2b7"
+processo:
+  nome: "Apuração de Enquadramento de Limites - Mesa de Renda Fixa"
+  mesa: "Renda Fixa - Risco de Mercado"
+  dono: "carlos.risco@banco.com.br"
+  frequencia: "diaria"
+  criticidade: "alta"
+origem:
+  stack: excel_vba
+analista: "igormiyamura10@gmail.com"
+criado_em: "2026-08-20T09:00:00-03:00"
+atualizado_em: "2026-08-20T10:40:00-03:00"
+estagio_atual: revisao_tecnica
+
+estagios:
+  discovery:          {status: concluido, artefato: "entrada/discovery.yaml"}
+  doc_negocio:         {status: concluido, artefato: "especificacao/doc_negocio.md"}
+  doc_tecnico:         {status: concluido, artefato: "especificacao/doc_tecnico.md"}
+  grafo:               {status: concluido, artefato: "especificacao/grafo_processo.mmd"}
+  plano:               {status: concluido, artefato: "plano/plano_implementacao.md"}
+  aprovacao_plano:     {status: concluido}
+  implementacao:       {status: concluido, artefato: "src/enquadramento_limites_renda_fixa/"}
+  homologacao:         {status: concluido, artefato: "testes/relatorio_homologacao.md"}
+  revisao_tecnica:     {status: pendente}
+
+revisao_tecnica:
+  obrigatoria: true
+  aprovado_por: null
+  aprovado_em: null
+
+nota: >
+  Execução de exemplo (segunda) criada para validar o pipeline com um
+  monólito real: 5 módulos VBA + 1 classe + fórmulas Excel de conferência
+  manual. Exercita o modo monólito, checkpoint incremental, discovery
+  hierárquico com codigo_original, e o subpacote logica/.

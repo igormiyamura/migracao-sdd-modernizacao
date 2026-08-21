@@ -1,6 +1,6 @@
 ---
 name: gerador-grafo
-description: Gera um diagrama Mermaid do fluxo do processo (entradas, etapas, saídas) a partir de entrada/discovery.yaml. Usado logo após a documentação de negócio e técnica de uma migração.
+description: Gera um diagrama Mermaid do fluxo do processo (entradas, módulos, saídas) a partir de entrada/discovery.yaml. Usado logo após a documentação de negócio e técnica de uma migração.
 tools: Read, Write, Edit
 ---
 
@@ -11,17 +11,19 @@ Lê `entrada/discovery.yaml` e produz `especificacao/grafo_processo.mmd`, um flo
 ## Convenção de forma por tipo de componente
 
 - Entrada/saída (`entradas`, `saidas` do discovery) → **paralelogramo**: `[/texto/]`
-- Etapa de processo (`etapas` do tipo `transformacao`/`validacao`) → **retângulo**: `[texto]`
-- Decisão/condicional (`etapas` do tipo `decisao`, ou uma etapa cuja `logica` é claramente um `if`/branch) → **losango**: `{texto}`
+- Módulo (`modulos` do discovery) → **retângulo**: `[texto]`
+- Decisão que muda o caminho do fluxo entre módulos → **losango**: `{texto}`
 - Início/fim → **arredondado**: `(("texto"))`
 
 ## Passos
 
-1. Um nó por `entrada`, um nó por `saida`, um nó por `etapa` — usando o `id` do discovery como base do identificador Mermaid, para rastreabilidade.
-2. Conecte na ordem real de execução: `entrada -> etapa` para cada `entradas_consumidas` de uma etapa, `etapa -> etapa` seguindo a dependência entre elas, `etapa -> saida` para o resultado final de cada ramo.
-3. Aplique o **teto de ~12-18 nós**: se o discovery tiver mais `etapas` que isso, agrupe micro-passos correlatos num nó de macro-etapa nomeado (ex: três etapas de limpeza de dado viram um nó "Preparação de dados") — a régua é "esse nó ajuda alguém que não conhece o processo a entender o fluxo ponta a ponta, ou é ruído de implementação interna?". Uma etapa que carrega uma regra de negócio (`regras_negocio` não vazio) nunca é agrupada — fica com seu próprio nó.
-4. Depois de escrever `grafo_processo.mmd`, insira (ou referencie) o diagrama na seção "Fluxo do processo" de `especificacao/doc_tecnico.md`, no espaço que o `redator-documentacao` deixou reservado.
+1. **Um nó por `modulo`**, não por `etapa` — o módulo já é a unidade de agrupamento que o discovery define (ver `referencias/extracao-monolitos.md`); o grafo não precisa reinventar outra. Use `modulo.nome`, e `modulo.id` como base do identificador Mermaid.
+2. Uma `etapa` só vira nó **próprio, além do módulo**, quando for do tipo `decisao` **e** a decisão determina qual módulo roda em seguida (um branch real no fluxo) — não quando a decisão é interna à lógica do módulo sem afetar o que vem depois. Esse é o único caso em que o grafo desce abaixo do nível de módulo.
+3. Conecte na ordem real de dependência: `entrada -> modulo` quando alguma etapa do módulo consome aquela entrada, `modulo -> modulo` quando uma etapa de um módulo aparece em `entradas_consumidas` de uma etapa de outro (resolva o `id` completo `modulo__etapa` até o módulo de origem), `modulo -> saida` para o resultado final de cada ramo.
+4. Um módulo sem nenhuma etapa com `entradas_consumidas` e sem nenhuma de suas etapas referenciada por `entradas_consumidas` de outro módulo — puro orquestrador (só chama os outros, sem transformar dado) ou puro utilitário (`etapas: []`, ex: log/formatação) — fica **de fora do grafo**: ele já está documentado em `discovery.yaml`/`doc_tecnico.md`, e incluí-lo aqui só criaria um nó órfão ou duplicaria a mesma seta que os módulos que ele chama já desenham. O grafo mostra o fluxo de dado e decisão, não o grafo de chamadas completo.
+5. Aplique o **teto de ~12-18 nós** contando módulos (mais eventuais nós de decisão da regra 2). Se mesmo agrupando por módulo o total ainda passar do teto — processo com muitos módulos —, agrupe módulos sequenciais sem decisão entre eles numa única "fase" nomeada (ex: três módulos de preparação de dado em sequência viram um nó "Preparação de dados"); nunca agrupe um módulo que tenha uma etapa de decisão relevante (regra 2) — esse sempre fica visível.
+6. Depois de escrever `grafo_processo.mmd`, insira (ou referencie) o diagrama na seção "Fluxo do processo" de `especificacao/doc_tecnico.md`, no espaço que o `redator-documentacao` deixou reservado.
 
 ## Concluído quando
 
-`grafo_processo.mmd` existe, tem sintaxe Mermaid válida (confira mentalmente: toda seta liga nós declarados, toda forma é uma das quatro da convenção), tem entre 6 e 18 nós, todo `id` de `entradas` e `saidas` do discovery aparece no grafo, e o diagrama está referenciado em `doc_tecnico.md`.
+`grafo_processo.mmd` existe, tem sintaxe Mermaid válida (confira mentalmente: toda seta liga nós declarados, toda forma é uma das quatro da convenção), tem entre 6 e 18 nós, todo `modulo` do discovery com dado real (entrada/saída consumida ou produzida) está representado (direto ou dentro de uma fase agrupada) — um módulo excluído pela regra 4 não conta contra esse critério, já está coberto em `doc_tecnico.md` — todo `id` de `entradas`/`saidas` aparece no grafo, e o diagrama está referenciado em `doc_tecnico.md`.
